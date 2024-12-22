@@ -36,16 +36,19 @@ def dashboard():
         return redirect(url_for("login"))
 
     search_query = request.args.get("search", "")
+    search_query_replace = search_query.replace("'", "''")
     conn = get_db_connection()
 
+    #SEARCHBOX is VULNERABLE to XSS REFLECTED AND SQL INJECTION
     if search_query:
-        query = f"SELECT * FROM clients WHERE name LIKE '%{search_query}%'"
-        clients = conn.execute(query).fetchall()
+        query = f"SELECT * FROM clients WHERE name LIKE '%{search_query_replace}%'"
     else:
-        clients = conn.execute("SELECT * FROM clients").fetchall()
+        query = "SELECT * FROM clients"
+
+    clients = conn.execute(query).fetchall()
 
     conn.close()
-    return render_template("dashboard.html", clients=clients)
+    return render_template("dashboard.html", clients=clients, search_query=search_query)
 
 @app.route("/add_client", methods=["GET", "POST"])
 def add_client():
@@ -57,7 +60,7 @@ def add_client():
         email = request.form["email"]
 
         conn = get_db_connection()
-        # VULNERABLE to XSS STORED
+        # ADDING a payload in NAME FIELD IS VULNERABLE to XSS STORED
         conn.execute("INSERT INTO clients (name, email) VALUES ('" + name + "', '" + email + "')")
         conn.commit()
         conn.close()

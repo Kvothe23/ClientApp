@@ -9,9 +9,12 @@
 <h1>Client List</h1>
 <form method="GET" action="/dashboard">
     <label for="search">Search:</label>
-    <input type="text" name="search" id="search" value="{{ search_query }}">
+    <input type="text" name="search" id="search" value="{{ search_query | safe }}">
     <button type="submit">Search</button>
 </form>
+<div>
+   Searching for {{ search_query | safe }}
+</div>
 <br>
 <a href="/add_client">Add New Client</a>
 <table>
