@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DASHBOARD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<h1>Client List</h1>
+<form method="GET" action="/dashboard">
+    <label for="search">Search:</label>
+    <input type="text" name="search" id="search" value="{{ search_query }}">
+    <button type="submit">Search</button>
+</form>
+<br>
+<a href="/add_client">Add New Client</a>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        {% if session.get("role") == "admin" %}
+        <th>Actions</th>
+        {% endif %}
+    </tr>
+    {% if clients %}
+    {% for client in clients %}
+    <tr>
+        <td>{{ client.id }}</td>
+        <td>{{ client.name | safe }}</td>
+        <td>{{ client.email }}</td>
+        {% if session.get("role") == "admin" %}
+        <td>
+            <a href="/delete_client/{{ client.id }}">Delete</a>
+        </td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+    {% else %}
+    <tr>
+        <td colspan="3">No clients found.</td>
+    </tr>
+    {% endif %}
+</table>
+<a href="/logout">Logout</a>
+</body>
+</html>
