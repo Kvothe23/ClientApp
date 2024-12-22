@@ -9,7 +9,7 @@
 <h1>Client List</h1>
 <form method="GET" action="/dashboard">
     <label for="search">Search:</label>
-    <input type="text" name="search" id="search" value="{{ search_query | safe }}">
+    <input type="text" name="search" id="search" value="{{ search_query }}">
     <button type="submit">Search</button>
 </form>
 <div>
@@ -29,7 +29,7 @@
     {% for client in clients %}
     <tr>
         <td>{{ client.id }}</td>
-        <td>{{ client.name | safe }}</td>
+        <td>{{ client.name }}</td>
         <td>{{ client.email }}</td>
         {% if session.get("role") == "admin" %}
         <td>

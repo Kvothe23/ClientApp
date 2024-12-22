@@ -1,25 +1,41 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import sqlite3
+import bleach
 
 app = Flask(__name__)
 app.secret_key = "1234"
 DATABASE = "database.db"
+
+#SECURITY HEADERS IMPLEMENTATION
+@app.after_request
+def security_headers(response):
+    response.headers["Content-Security-Policy"] = "default-src 'self';"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Content-Type-Options"]="nosniff"
+    response.headers["X-Frame-Options"]="DENY"
+    response.headers["Referrer-Policy"]="strict-origin"
+    return response
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
+def sanitize_data(input_data):
+    return bleach.clean(input_data)
+
 @app.route("/", methods= ["GET", "POST"])
 def login():
     if request.method == "POST":
-        username =request.form["username"]
-        password =request.form["password"]
+
+        #SANITIZED DATA
+        username = sanitize_data(request.form["username"])
+        password =sanitize_data(request.form["password"])
 
         conn =get_db_connection()
-        #VULNERABLE to SQL INJECTION
-        query = f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
-        user = conn.execute(query).fetchone()
+        #SECURE AGAINST SQL INJECTION -> prepared statements
+        query = "SELECT * FROM users WHERE username = ? AND password = ?"
+        user = conn.execute(query, (username, password)).fetchone()
         conn.close()
 
         if user:
@@ -36,19 +52,20 @@ def dashboard():
         return redirect(url_for("login"))
 
     search_query = request.args.get("search", "")
-    search_query_replace = search_query.replace("'", "''")
+    sanitize_query = sanitize_data(search_query)
     conn = get_db_connection()
 
-    #SEARCHBOX is VULNERABLE to XSS REFLECTED AND SQL INJECTION
+    #SECURE PREPARED STATEMENT AND SANITIZED DATA
     if search_query:
-        query = f"SELECT * FROM clients WHERE name LIKE '%{search_query_replace}%'"
+        query = "SELECT * FROM clients WHERE name LIKE ?"
+        clients = conn.execute(query, (f"%{sanitize_query}%",)).fetchall()
     else:
         query = "SELECT * FROM clients"
 
     clients = conn.execute(query).fetchall()
 
     conn.close()
-    return render_template("dashboard.html", clients=clients, search_query=search_query)
+    return render_template("dashboard.html", clients=clients, search_query=sanitize_query)
 
 @app.route("/add_client", methods=["GET", "POST"])
 def add_client():
@@ -56,12 +73,13 @@ def add_client():
         return redirect(url_for("login"))
 
     if request.method == "POST":
-        name = request.form["name"]
-        email = request.form["email"]
+        #SANITIZED DATA
+        name = sanitize_data(request.form["name"])
+        email = sanitize_data(request.form["email"])
 
         conn = get_db_connection()
-        # ADDING a payload in NAME FIELD IS VULNERABLE to XSS STORED
-        conn.execute("INSERT INTO clients (name, email) VALUES ('" + name + "', '" + email + "')")
+        # SECURE PREPARED STATEMENT
+        conn.execute("INSERT INTO clients (name, email) VALUES (?, ?)", (name, email))
         conn.commit()
         conn.close()
 
@@ -74,7 +92,8 @@ def delete_client(client_id):
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-    conn.execute(f"DELETE FROM clients WHERE id={client_id}")
+    #PREPARED STATEMENT
+    conn.execute("DELETE FROM clients WHERE id = ?", (client_id,))
     conn.commit()
     conn.close()
 
